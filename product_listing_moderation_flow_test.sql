@@ -14,11 +14,12 @@ DELETE FROM Product_categories WHERE product_id > 15;
 DELETE FROM Products WHERE product_id > 15;
 
 UPDATE Products
-SET approval_status = CASE WHEN visible THEN 'approved' ELSE 'hidden' END,
+SET approval_status = CASE product_id WHEN 9 THEN 'hidden' ELSE 'approved' END,
     moderation_reason = NULL,
     moderation_note = NULL,
     moderated_at = NULL,
-    moderated_by = NULL;
+    moderated_by = NULL
+WHERE product_id <= 15;
 
 SELECT setval(
     pg_get_serial_sequence('products', 'product_id'),
@@ -29,7 +30,7 @@ SELECT setval(
 -- -----------------------------------------------------------------------------
 -- A. THÀNH CÔNG — Seller đăng SP hợp lệ → Hiển thị ngay (approved)
 -- seller_hoa (user_id=3), danh mục Thời trang nam (1)
--- Kỳ vọng: product_id=16, approval_status=approved, visible=TRUE
+-- Kỳ vọng: product_id=16, approval_status=approved
 -- -----------------------------------------------------------------------------
 SELECT * FROM func_seller_list_product(
     3,                                      -- p_seller_user_id
@@ -42,11 +43,11 @@ SELECT * FROM func_seller_list_product(
 );
 
 SELECT * FROM func_get_product_moderation_case(16);
--- Kỳ vọng: approved, visible=TRUE
+-- Kỳ vọng: approved
 
 -- -----------------------------------------------------------------------------
 -- B. CHỜ DUYỆT — Seller đăng SP có từ khóa rủi ro → pending
--- Kỳ vọng: product_id=17, approval_status=pending, visible=FALSE
+-- Kỳ vọng: product_id=17, approval_status=pending
 -- -----------------------------------------------------------------------------
 SELECT * FROM func_seller_list_product(
     3,
@@ -59,7 +60,7 @@ SELECT * FROM func_seller_list_product(
 );
 
 SELECT * FROM func_get_product_moderation_case(17);
--- Kỳ vọng: pending, visible=FALSE
+-- Kỳ vọng: pending
 
 -- -----------------------------------------------------------------------------
 -- C. ADMIN — Danh sách sản phẩm chờ duyệt
@@ -70,7 +71,7 @@ SELECT * FROM func_admin_list_pending_products(1);
 
 -- -----------------------------------------------------------------------------
 -- D. ADMIN — Từ chối SP vi phạm (hàng giả)
--- Kỳ vọng: hidden, visible=FALSE, có moderation_reason + thông báo cảnh báo
+-- Kỳ vọng: hidden, có moderation_reason + thông báo cảnh báo
 -- -----------------------------------------------------------------------------
 SELECT * FROM func_admin_moderate_product(
     17,                                     -- p_product_id
@@ -85,22 +86,22 @@ SELECT * FROM func_get_product_moderation_case(17);
 
 -- -----------------------------------------------------------------------------
 -- E. ADMIN — Phê duyệt SP hợp lệ (đã hiển thị từ kịch bản A, chạy riêng nếu cần)
--- Kỳ vọng ERROR: "Sản phẩm đã ở trạng thái Hiển thị!"
+-- Kỳ vọng ERROR: "Sản phẩm đã được phê duyệt (approved)!"
 -- -----------------------------------------------------------------------------
 -- SELECT * FROM func_admin_moderate_product(16, 1, 'approve');
 
 -- -----------------------------------------------------------------------------
--- F. TRANG KHÁCH HÀNG — Chỉ thấy SP approved + visible
+-- F. TRANG KHÁCH HÀNG — Chỉ thấy SP approved
 -- Kỳ vọng: có product 16, KHÔNG có product 17
 -- -----------------------------------------------------------------------------
-SELECT product_id, name, approval_status, visible
+SELECT product_id, name, approval_status
 FROM Products
 WHERE product_id IN (16, 17)
 ORDER BY product_id;
--- Kỳ vọng: 16 approved/TRUE, 17 hidden/FALSE
+-- Kỳ vọng: 16 approved, 17 hidden
 
-SELECT COUNT(*) AS visible_new_products
-FROM func_get_customer_visible_products()
+SELECT COUNT(*) AS approved_new_products
+FROM func_get_customer_approved_products()
 WHERE out_product_id IN (16, 17);
 -- Kỳ vọng: 1 (chỉ product 16)
 
@@ -123,7 +124,6 @@ SELECT
     p.product_id,
     p.name,
     p.approval_status,
-    p.visible,
     p.moderation_reason,
     s.store_name
 FROM Products p
@@ -132,5 +132,5 @@ WHERE p.product_id > 15
 ORDER BY p.product_id;
 
 -- Kỳ vọng:
---   16 | Áo khoác gió...     | approved | TRUE  | NULL         | Shop Thời Trang Hoa
---   17 | Đồng hồ hàng giả... | hidden   | FALSE | COUNTERFEIT  | Shop Thời Trang Hoa
+--   16 | Áo khoác gió...     | approved | NULL         | Shop Thời Trang Hoa
+--   17 | Đồng hồ hàng giả... | hidden   | COUNTERFEIT  | Shop Thời Trang Hoa

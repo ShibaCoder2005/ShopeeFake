@@ -1,27 +1,9 @@
 -- =============================================================================
 -- Luồng Đặt hàng & Thanh toán (Activity Diagram)
 -- Swimlanes: Khách hàng | Hệ thống | Người bán | Đơn vị vận chuyển (ĐVVC)
+-- Sơ đồ PlantUML: diagrams/order_payment_flow/*.puml
 -- Chạy sau create_table.sql
 -- =============================================================================
-
--- -----------------------------------------------------------------------------
--- 0. Bổ sung cột phục vụ luồng (chạy một lần)
--- -----------------------------------------------------------------------------
-ALTER TABLE Orders ADD COLUMN IF NOT EXISTS order_note      TEXT;
-ALTER TABLE Orders ADD COLUMN IF NOT EXISTS shipping_fee    DECIMAL(12, 2) DEFAULT 0;
-ALTER TABLE Orders ADD COLUMN IF NOT EXISTS service_fee     DECIMAL(12, 2) DEFAULT 5000;
-ALTER TABLE Orders ADD COLUMN IF NOT EXISTS delivered_at    TIMESTAMP;
-ALTER TABLE Orders ADD COLUMN IF NOT EXISTS received_at     TIMESTAMP;
-ALTER TABLE Orders ADD COLUMN IF NOT EXISTS refund_amount   DECIMAL(12, 2) DEFAULT 0;
-ALTER TABLE Orders ADD COLUMN IF NOT EXISTS seller_revenue  DECIMAL(12, 2);
-ALTER TABLE Orders ADD COLUMN IF NOT EXISTS shipping_revenue DECIMAL(12, 2);
-ALTER TABLE Orders ADD COLUMN IF NOT EXISTS settlement_status VARCHAR(50);
-ALTER TABLE Orders ADD COLUMN IF NOT EXISTS can_rate        BOOLEAN DEFAULT FALSE;
-ALTER TABLE Orders ADD COLUMN IF NOT EXISTS can_return      BOOLEAN DEFAULT TRUE;
-ALTER TABLE Orders ADD COLUMN IF NOT EXISTS auto_completed  BOOLEAN DEFAULT FALSE;
-
-ALTER TABLE Order_Items ADD COLUMN IF NOT EXISTS return_quantity INT DEFAULT 0;
-ALTER TABLE Order_Items ADD COLUMN IF NOT EXISTS return_reason   TEXT;
 
 -- =============================================================================
 -- TRIGGERS — Ràng buộc toàn vẹn & đồng bộ tồn kho (CREATE OR REPLACE)
@@ -32,13 +14,18 @@ CREATE OR REPLACE FUNCTION func_check_and_update_stock()
 RETURNS TRIGGER AS $$
 DECLARE
     v_stock INT;
+    v_approval_status VARCHAR(20);
 BEGIN
-    SELECT stock INTO v_stock
+    SELECT stock, approval_status INTO v_stock, v_approval_status
     FROM Products
     WHERE product_id = NEW.product_id;
 
     IF v_stock IS NULL THEN
         RAISE EXCEPTION 'Sản phẩm không tồn tại!';
+    END IF;
+
+    IF v_approval_status IS DISTINCT FROM 'approved' THEN
+        RAISE EXCEPTION 'Sản phẩm chưa được phê duyệt hoặc không khả dụng!';
     END IF;
 
     IF v_stock < NEW.quantity THEN
@@ -199,6 +186,17 @@ BEGIN
         RAISE EXCEPTION 'Giỏ hàng không có sản phẩm của người bán này!';
     END IF;
 
+    IF EXISTS (
+        SELECT 1
+        FROM Cart_items ci
+        JOIN Products p ON p.product_id = ci.product_id
+        WHERE ci.cart_id = v_cart_id
+          AND p.seller_id = p_seller_id
+          AND p.approval_status IS DISTINCT FROM 'approved'
+    ) THEN
+        RAISE EXCEPTION 'Giỏ hàng có sản phẩm chưa được phê duyệt hoặc không khả dụng!';
+    END IF;
+
     -- Bước 1: Tạo bản ghi Đơn hàng mới và lấy lại order_id
     INSERT INTO Orders (
         user_id, seller_id, shipping_units_id,
@@ -247,7 +245,7 @@ END;
 $$;
 
 -- -----------------------------------------------------------------------------
--- Hàm xử lý Trả hàng & Tính tiền hoàn (trả từng sản phẩm, không dùng JSONB)
+-- Hàm xử lý Trả hàng & Tính tiền hoàn (trả từng sản phẩm)
 -- Chỉ áp dụng đơn đã giao (delivered) và đã thanh toán (paid / partial_refund)
 -- -----------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION func_process_return(

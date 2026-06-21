@@ -1,0 +1,62 @@
+@startuml order_payment_luong_huy_don
+' Luồng hủy đơn hàng
+
+title Luồng hủy đơn hàng\nSwimlanes: Khách hàng | Hệ thống | Người bán | ĐVVC
+
+skinparam shadowing false
+skinparam ActivityBackgroundColor #FEFECE
+skinparam ActivityBorderColor #A80036
+
+|Khách hàng|
+start
+if (Muốn hủy đơn?) then (có)
+  if (status = pending?) then (có)
+    :Gọi func_cancel_order(order_id);
+    |Hệ thống|
+    partition "func_cancel_order" {
+      :Kiểm tra status = pending;
+      :UPDATE Orders\nstatus -> cancelled;
+      if (payment_status = paid?) then (có)
+        :payment_status -> refunded;
+      else (unpaid)
+      endif
+    }
+    :trg_orders_validate_status\npending -> cancelled;
+    :trg_orders_restore_stock\n(AFTER UPDATE status);
+    #PaleGreen:Đơn đã hủy — hoàn kho;
+    stop
+  else (không pending)
+    |Người bán|
+    if (status = confirmed?) then (có)
+      :Hủy đơn (status -> cancelled);
+      |Hệ thống|
+      :trg_orders_validate_status;
+      :trg_orders_restore_stock;
+      #PaleGreen:Đơn đã hủy — hoàn kho;
+      stop
+    else (không)
+      |ĐVVC|
+      if (status = shipping?) then (có)
+        :Hủy vận chuyển (status -> cancelled);
+        |Hệ thống|
+        :trg_orders_validate_status;
+        :trg_orders_restore_stock;
+        #PaleGreen:Đơn đã hủy — hoàn kho;
+        stop
+      else (delivered / received / returned)
+        #Pink:Không thể hủy ở trạng thái này;
+        stop
+      endif
+    endif
+  endif
+else (không)
+  stop
+endif
+
+legend bottom
+  Khách: chỉ func_cancel_order() khi pending
+  Seller / ĐVVC: UPDATE trực tiếp qua app
+  Hoàn kho: trigger với mọi chuyển -> cancelled
+end legend
+
+@enduml

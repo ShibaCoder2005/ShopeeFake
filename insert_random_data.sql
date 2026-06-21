@@ -84,22 +84,22 @@ INSERT INTO Carts (cart_id, user_id) VALUES
 -- ============================================================
 -- 7. Products (phụ thuộc Sellers)
 -- ============================================================
-INSERT INTO Products (product_id, name, price, description, stock, img_path, visible, seller_id) VALUES
-(1,  'Áo thun nam Premium - Trắng',       189000.00, 'Cotton 100%, form regular fit.',              120, '/images/products/p1.jpg',  TRUE,  1),
-(2,  'Quần jean nam Slim Fit',             349000.00, 'Jean co giãn, màu xanh đậm.',                 85,  '/images/products/p2.jpg',  TRUE,  1),
-(3,  'Giày sneaker unisex Lite',           520000.00, 'Đế cao su chống trượt, size 39-43.',          45,  '/images/products/p3.jpg',  TRUE,  1),
-(4,  'Tai nghe Bluetooth Pro Max',         890000.00, 'Chống ồn chủ động, pin 30 giờ.',              200, '/images/products/p4.jpg',  TRUE,  2),
-(5,  'Sạc nhanh 65W USB-C',                259000.00, 'Tương thích iPhone, Samsung, laptop.',          310, '/images/products/p5.jpg',  TRUE,  2),
-(6,  'Ốp lưng điện thoại trong suốt',      45000.00,  'Chống sốc 4 góc, dày 1.2mm.',                  500, '/images/products/p6.jpg',  TRUE,  2),
-(7,  'Nồi cơm điện 1.8L Smart',            1250000.00,'Nấu cơm, hấp, nấu cháo, hẹn giờ.',             60,  '/images/products/p7.jpg',  TRUE,  3),
-(8,  'Bình giữ nhiệt 500ml',               135000.00, 'Giữ nóng 12h, giữ lạnh 24h.',                 150, '/images/products/p8.jpg',  TRUE,  3),
-(9,  'Máy xay sinh tố cầm tay',             420000.00, 'Công suất 700W, 2 tốc độ.',                   75,  '/images/products/p9.jpg',  FALSE, 3),
-(10, 'Kem dưỡng da ban đêm 50ml',          320000.00, 'Dưỡng ẩm sâu, phù hợp da khô.',               90,  '/images/products/p10.jpg', TRUE,  4),
-(11, 'Son môi lì Ultra Red',               175000.00, 'Màu đỏ cam, giữ màu 8 giờ.',                  220, '/images/products/p11.jpg', TRUE,  4),
-(12, 'Serum vitamin C 30ml',               450000.00, 'Làm sáng da, giảm thâm nám.',                 55,  '/images/products/p12.jpg', TRUE,  4),
-(13, 'Balo du lịch 40L chống nước',         680000.00, 'Ngăn laptop 15.6 inch, chống nước IPX4.',     40,  '/images/products/p13.jpg', TRUE,  5),
-(14, 'Giày chạy bộ Air Flex',              1150000.00,'Đế Phylon nhẹ, thoáng khí.',                  30,  '/images/products/p14.jpg', TRUE,  5),
-(15, 'Thảm yoga cao su tự nhiên',          290000.00, 'Dày 6mm, chống trượt hai mặt.',               100, '/images/products/p15.jpg', TRUE,  5);
+INSERT INTO Products (product_id, name, price, description, stock, img_path, approval_status, seller_id) VALUES
+(1,  'Áo thun nam Premium - Trắng',       189000.00, 'Cotton 100%, form regular fit.',              120, '/images/products/p1.jpg',  'approved', 1),
+(2,  'Quần jean nam Slim Fit',             349000.00, 'Jean co giãn, màu xanh đậm.',                 85,  '/images/products/p2.jpg',  'approved', 1),
+(3,  'Giày sneaker unisex Lite',           520000.00, 'Đế cao su chống trượt, size 39-43.',          45,  '/images/products/p3.jpg',  'approved', 1),
+(4,  'Tai nghe Bluetooth Pro Max',         890000.00, 'Chống ồn chủ động, pin 30 giờ.',              200, '/images/products/p4.jpg',  'approved', 2),
+(5,  'Sạc nhanh 65W USB-C',                259000.00, 'Tương thích iPhone, Samsung, laptop.',          310, '/images/products/p5.jpg',  'approved', 2),
+(6,  'Ốp lưng điện thoại trong suốt',      45000.00,  'Chống sốc 4 góc, dày 1.2mm.',                  500, '/images/products/p6.jpg',  'approved', 2),
+(7,  'Nồi cơm điện 1.8L Smart',            1250000.00,'Nấu cơm, hấp, nấu cháo, hẹn giờ.',             60,  '/images/products/p7.jpg',  'approved', 3),
+(8,  'Bình giữ nhiệt 500ml',               135000.00, 'Giữ nóng 12h, giữ lạnh 24h.',                 150, '/images/products/p8.jpg',  'approved', 3),
+(9,  'Máy xay sinh tố cầm tay',             420000.00, 'Công suất 700W, 2 tốc độ.',                   75,  '/images/products/p9.jpg',  'hidden',   3),
+(10, 'Kem dưỡng da ban đêm 50ml',          320000.00, 'Dưỡng ẩm sâu, phù hợp da khô.',               90,  '/images/products/p10.jpg', 'approved', 4),
+(11, 'Son môi lì Ultra Red',               175000.00, 'Màu đỏ cam, giữ màu 8 giờ.',                  220, '/images/products/p11.jpg', 'approved', 4),
+(12, 'Serum vitamin C 30ml',               450000.00, 'Làm sáng da, giảm thâm nám.',                 55,  '/images/products/p12.jpg', 'approved', 4),
+(13, 'Balo du lịch 40L chống nước',         680000.00, 'Ngăn laptop 15.6 inch, chống nước IPX4.',     40,  '/images/products/p13.jpg', 'approved', 5),
+(14, 'Giày chạy bộ Air Flex',              1150000.00,'Đế Phylon nhẹ, thoáng khí.',                  30,  '/images/products/p14.jpg', 'approved', 5),
+(15, 'Thảm yoga cao su tự nhiên',          290000.00, 'Dày 6mm, chống trượt hai mặt.',               100, '/images/products/p15.jpg', 'approved', 5);
 
 -- ============================================================
 -- 8. Product_categories (phụ thuộc Products, Categories)

@@ -1,0 +1,68 @@
+@startuml order_payment_luong_tra_hang
+' Luồng trả hàng & hoàn tiền
+
+title Luồng trả hàng & Hoàn tiền\nSwimlanes: Khách hàng | Hệ thống
+
+skinparam shadowing false
+skinparam ActivityBackgroundColor #FEFECE
+skinparam ActivityBorderColor #A80036
+
+|Khách hàng|
+start
+if (Muốn trả hàng?) then (có)
+  :Chọn SP, số lượng, lý do;
+  :Gọi func_process_return();
+else (không)
+  stop
+endif
+
+|Hệ thống|
+partition "func_process_return - kiểm tra" {
+  if (return_quantity > 0?) then (không)
+    #Pink:RAISE EXCEPTION;
+    stop
+  endif
+  if (can_return = TRUE?) then (không)
+    #Pink:Đơn đã khóa trả hàng;
+    stop
+  endif
+  if (status hợp lệ?) then (không)
+    #Pink:Chưa đủ điều kiện trả;
+    stop
+  endif
+  if (payment hợp lệ?) then (không)
+    #Pink:Không thể hoàn tiền;
+    stop
+  endif
+}
+
+:Tính item_refund = price x return_quantity;
+:UPDATE Order_Items return_quantity;
+
+partition "Triggers Order_Items" {
+  :trg_order_items_validate_return\n(BEFORE);
+  :trg_order_items_restore_stock\n(AFTER - hoàn kho);
+}
+
+if (Trả hết mọi SP?) then (có)
+  :Hoàn thêm shipping_fee;
+  :status -> returned\npayment -> refunded;
+else (một phần)
+  :payment -> partial_refund;
+  if (refund >= amount?) then (có)
+    :refunded + returned;
+  endif
+endif
+
+:trg_orders_validate_status;
+
+|Khách hàng|
+:Nhận thông báo hoàn tiền;
+stop
+
+legend bottom
+  can_return TRUE: sau func_confirm_received()
+  can_return FALSE: sau func_auto_complete_orders()
+end legend
+
+@enduml

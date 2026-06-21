@@ -49,14 +49,19 @@ CREATE TABLE Products (
     description TEXT,
     stock INT DEFAULT 0,
     img_path VARCHAR(255),
-    visible BOOLEAN DEFAULT TRUE,
+    approval_status VARCHAR(20) DEFAULT 'pending',
+    moderation_reason VARCHAR(50),
+    moderation_note TEXT,
+    moderated_at TIMESTAMP,
+    moderated_by INT REFERENCES Users(user_id) ON DELETE SET NULL,
+    submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     seller_id INT REFERENCES Sellers(seller_id) ON DELETE CASCADE
 );
 
 CREATE TABLE Orders (
     order_id SERIAL PRIMARY KEY,
     order_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    status VARCHAR(50), 
+    status VARCHAR(50),
     tracking_number VARCHAR(100),
     shipping_status VARCHAR(50),
     estimated_delivery TIMESTAMP,
@@ -64,8 +69,26 @@ CREATE TABLE Orders (
     payment_date TIMESTAMP,
     payment_method VARCHAR(50),
     amount DECIMAL(12, 2),
-    payment_status VARCHAR(50), 
-    user_id INT REFERENCES Users(user_id) ON DELETE SET NULL, 
+    payment_status VARCHAR(50),
+    order_note TEXT,
+    shipping_fee DECIMAL(12, 2) DEFAULT 0,
+    service_fee DECIMAL(12, 2) DEFAULT 5000,
+    delivered_at TIMESTAMP,
+    received_at TIMESTAMP,
+    refund_amount DECIMAL(12, 2) DEFAULT 0,
+    seller_revenue DECIMAL(12, 2),
+    shipping_revenue DECIMAL(12, 2),
+    settlement_status VARCHAR(50),
+    can_rate BOOLEAN DEFAULT FALSE,
+    can_return BOOLEAN DEFAULT TRUE,
+    auto_completed BOOLEAN DEFAULT FALSE,
+    return_status VARCHAR(50) DEFAULT 'none',
+    return_reason VARCHAR(50),
+    return_requested_at TIMESTAMP,
+    return_received_at TIMESTAMP,
+    refund_processed_at TIMESTAMP,
+    refund_note TEXT,
+    user_id INT REFERENCES Users(user_id) ON DELETE SET NULL,
     seller_id INT REFERENCES Sellers(seller_id) ON DELETE SET NULL,
     shipping_units_id INT REFERENCES Shipping_units(shipping_units_id) ON DELETE SET NULL
 );
@@ -89,5 +112,7 @@ CREATE TABLE Order_Items (
     quantity INT NOT NULL CHECK (quantity > 0),
     comment TEXT,
     rating INT CHECK (rating >= 1 AND rating <= 5),
+    return_quantity INT DEFAULT 0,
+    return_reason TEXT,
     PRIMARY KEY (order_id, product_id)
 );

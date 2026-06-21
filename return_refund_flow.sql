@@ -1,18 +1,8 @@
 -- =============================================================================
 -- Luồng Yêu cầu Trả hàng & Hoàn tiền
 -- Swimlanes: Khách hàng | Hệ thống | Người bán | Admin
--- Chạy sau: create_table.sql (+ order_payment_flow.sql nếu đã có cột phụ trợ)
+-- Chạy sau: create_table.sql (+ order_payment_flow.sql)
 -- =============================================================================
-
--- -----------------------------------------------------------------------------
--- 0. Bổ sung cột phục vụ luồng trả hàng
--- -----------------------------------------------------------------------------
-ALTER TABLE Orders ADD COLUMN IF NOT EXISTS return_status       VARCHAR(50) DEFAULT 'none';
-ALTER TABLE Orders ADD COLUMN IF NOT EXISTS return_reason       VARCHAR(50);
-ALTER TABLE Orders ADD COLUMN IF NOT EXISTS return_requested_at TIMESTAMP;
-ALTER TABLE Orders ADD COLUMN IF NOT EXISTS return_received_at  TIMESTAMP;
-ALTER TABLE Orders ADD COLUMN IF NOT EXISTS refund_processed_at TIMESTAMP;
-ALTER TABLE Orders ADD COLUMN IF NOT EXISTS refund_note         TEXT;
 
 -- -----------------------------------------------------------------------------
 -- 1. Trigger: validate giá trị return_status + return_reason
@@ -140,7 +130,7 @@ END;
 $$;
 
 -- -----------------------------------------------------------------------------
--- 4. Hệ thống/ĐVVC cập nhật trạng thái đang lấy hàng trả
+-- 4. ĐVVC cập nhật trạng thái đang lấy hàng trả
 -- -----------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION func_mark_return_in_transit(
     p_order_id INT

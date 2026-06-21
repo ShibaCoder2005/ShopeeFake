@@ -1,0 +1,48 @@
+@startuml order_payment_tong_quan
+' Luồng Đặt hàng & Thanh toán — Tổng quan
+' Swimlanes: Khách hàng | Hệ thống | Người bán | ĐVVC
+
+title Luồng Đặt hàng & Thanh toán — Tổng quan\n(order_payment_flow.sql)
+
+skinparam shadowing false
+skinparam ActivityBackgroundColor #FEFECE
+skinparam ActivityBorderColor #A80036
+
+|Khách hàng|
+start
+:Thêm SP vào giỏ hàng;
+:Đặt hàng & Thanh toán;
+
+|Hệ thống|
+:func_place_order()\n[pending / unpaid];
+:Trừ tồn kho\n(trg_order_item_insert);
+
+|Người bán|
+:Xử lý & giao ĐVVC\n[confirmed -> shipping];
+
+|ĐVVC|
+:Giao hàng\n[delivered];
+
+|Khách hàng|
+if (Xác nhận nhận hàng trong 3 ngày?) then (có)
+  :func_confirm_received\n[received];
+else (quá 3 ngày - Hệ thống auto)
+  :func_auto_complete_orders\n[received, khóa trả hàng];
+endif
+
+if (Trả hàng?) then (có)
+  :func_process_return\n[partial_refund / refunded];
+else (không)
+endif
+
+:Đánh giá SP;
+stop
+
+legend right
+  Luồng phụ chi tiết:
+  **02_luong_huy_don.puml** — Hủy đơn
+  **03_luong_tra_hang.puml** — Trả hàng
+  Thanh toán / đổi status: tầng ứng dụng
+end legend
+
+@enduml

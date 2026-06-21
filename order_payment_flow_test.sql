@@ -16,7 +16,8 @@ DELETE FROM Orders WHERE order_id > 10;
 
 -- Reset tồn kho về đúng dữ liệu seed
 UPDATE Products p
-SET stock = v.stock
+SET stock = v.stock,
+    approval_status = CASE p.product_id WHEN 9 THEN 'hidden' ELSE 'approved' END
 FROM (
     VALUES
         (1, 120), (2, 85), (3, 45), (4, 200), (5, 310),

@@ -1,0 +1,37 @@
+@startuml order_payment_triggers_ham
+' Quan hệ Triggers va Ham nghiep vu (activity style)
+
+title Triggers & Hàm nghiệp vụ — order_payment_flow.sql
+
+skinparam shadowing false
+skinparam ActivityBackgroundColor #FEFECE
+skinparam ActivityBorderColor #A80036
+
+start
+
+partition "func_place_order" {
+  :INSERT Orders (pending);
+  :INSERT Order_Items;
+  note right: trg_order_item_insert\n-> kiểm approval_status\n-> trừ Products.stock
+}
+
+partition "func_cancel_order" {
+  :UPDATE Orders -> cancelled;
+  note right: trg_orders_validate_status\n trg_orders_restore_stock\n-> hoàn kho
+}
+
+partition "func_process_return" {
+  :UPDATE Order_Items return_quantity;
+  note right: trg_order_items_validate_return\n trg_order_items_restore_stock
+  :UPDATE Orders refund/status;
+  note right: trg_orders_validate_status
+}
+
+partition "func_confirm_received / func_auto_complete_orders" {
+  :UPDATE Orders -> received;
+  note right: trg_orders_validate_status\n chốt seller_revenue
+}
+
+stop
+
+@enduml

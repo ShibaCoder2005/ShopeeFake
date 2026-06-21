@@ -1,0 +1,91 @@
+@startuml order_payment_luong_chinh
+' Luồng chính (Happy Path)
+' Nguồn: order_payment_flow.sql
+
+title Luồng chính — Đặt hàng, Thanh toán, Giao hàng, Xác nhận nhận\nSwimlanes: Khách hàng | Hệ thống | Người bán | ĐVVC
+
+skinparam shadowing false
+skinparam ActivityBackgroundColor #FEFECE
+skinparam ActivityBorderColor #A80036
+
+|Khách hàng|
+start
+:Thêm sản phẩm vào giỏ hàng\n(Carts / Cart_items);
+:Chọn seller, ĐVVC,\nphí ship, ghi chú, PTTT;
+:Gửi yêu cầu đặt hàng;
+
+|Hệ thống|
+:func_place_order();
+partition "func_place_order" {
+  :Kiểm tra giỏ hàng & SP của seller;
+  :INSERT Orders\nstatus=pending, payment_status=unpaid\nservice_fee=5000;
+  :INSERT Order_Items từ Cart_items;
+  note right
+    **trg_order_item_insert** (BEFORE INSERT)
+    func_check_and_update_stock()
+    • Kiểm tra tồn kho
+    • Trừ stock
+  end note
+  :Tính amount = sum(price x qty)\n+ shipping_fee + service_fee;
+  :Xóa Cart_items của seller;
+  :RETURN order_id;
+}
+:Đơn ở trạng thái pending / unpaid;
+
+|Khách hàng|
+:Thanh toán\n(MoMo / VNPay / thẻ / chuyển khoản / COD);
+
+|Hệ thống|
+:Cập nhật payment_status = paid\npayment_id, payment_date\n(tầng ứng dụng);
+
+|Người bán|
+if (Xác nhận đơn?) then (có)
+  :Cập nhật status → confirmed;
+else (bỏ qua — hợp lệ)
+  note right
+    State machine cho phép
+    pending → shipping trực tiếp
+  end note
+endif
+:Đóng gói hàng;
+:Bàn giao cho ĐVVC;
+:Cập nhật status → shipping;
+
+|Hệ thống|
+:trg_orders_validate_status\n(BEFORE UPDATE Orders);
+
+|ĐVVC|
+:Nhận hàng, cập nhật tracking;
+:Vận chuyển (shipping_status);
+:Giao hàng thành công;
+:Cập nhật status → delivered\ndelivered_at = CURRENT_TIMESTAMP;
+
+|Hệ thống|
+:trg_orders_validate_status;
+
+|Khách hàng|
+if (Xác nhận "Đã nhận hàng"\ntrong vòng 3 ngày?) then (có)
+  :Gọi func_confirm_received(order_id, user_id);
+  |Hệ thống|
+  partition "func_confirm_received" {
+    :Kiểm tra: delivered, paid,\nđúng user_id;
+    :Tính seller_revenue\n= sum(price x quantity);
+    :UPDATE Orders\nstatus → received\nreceived_at, seller_revenue\nshipping_revenue = shipping_fee\nsettlement_status = pending\ncan_rate = TRUE\ncan_return = TRUE;
+  }
+else (không — quá 3 ngày)
+  |Hệ thống|
+  partition "func_auto_complete_orders (cron)" {
+    :Quét đơn delivered + paid\n+ delivered_at + 3 days < now\n+ received_at IS NULL;
+    :Tính seller_revenue;
+    :UPDATE Orders\nstatus → received\nauto_completed = TRUE\ncan_rate = TRUE\ncan_return = FALSE;
+  }
+endif
+
+|Khách hàng|
+if (can_rate = TRUE?) then (có)
+  :Đánh giá sản phẩm\n(Order_Items.rating);
+else (không)
+endif
+stop
+
+@enduml

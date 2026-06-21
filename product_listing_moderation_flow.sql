@@ -11,22 +11,6 @@
 -- =============================================================================
 
 -- -----------------------------------------------------------------------------
--- 0. Bổ sung cột phục vụ kiểm duyệt
--- -----------------------------------------------------------------------------
-ALTER TABLE Products ADD COLUMN IF NOT EXISTS approval_status  VARCHAR(20) DEFAULT 'pending';
-ALTER TABLE Products ADD COLUMN IF NOT EXISTS moderation_reason VARCHAR(50);
-ALTER TABLE Products ADD COLUMN IF NOT EXISTS moderation_note    TEXT;
-ALTER TABLE Products ADD COLUMN IF NOT EXISTS moderated_at       TIMESTAMP;
-ALTER TABLE Products ADD COLUMN IF NOT EXISTS moderated_by       INT REFERENCES Users(user_id) ON DELETE SET NULL;
-ALTER TABLE Products ADD COLUMN IF NOT EXISTS submitted_at       TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
-
--- Đồng bộ dữ liệu seed: visible=TRUE → approved, visible=FALSE → hidden
-UPDATE Products
-SET approval_status = CASE WHEN visible THEN 'approved' ELSE 'hidden' END
-WHERE approval_status IS NULL
-   OR approval_status = 'pending';
-
--- -----------------------------------------------------------------------------
 -- 1. Trigger: validate approval_status + moderation_reason
 -- -----------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION func_validate_product_moderation_fields()
@@ -69,23 +53,7 @@ FOR EACH ROW
 EXECUTE FUNCTION func_validate_product_moderation_fields();
 
 -- -----------------------------------------------------------------------------
--- 2. Trigger: đồng bộ visible theo approval_status (trang Khách hàng)
--- -----------------------------------------------------------------------------
-CREATE OR REPLACE FUNCTION func_sync_product_visibility()
-RETURNS TRIGGER AS $$
-BEGIN
-    NEW.visible := (NEW.approval_status = 'approved');
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE OR REPLACE TRIGGER trg_products_sync_visibility
-BEFORE INSERT OR UPDATE OF approval_status ON Products
-FOR EACH ROW
-EXECUTE FUNCTION func_sync_product_visibility();
-
--- -----------------------------------------------------------------------------
--- 3. Người bán đăng sản phẩm mới
+-- 2. Người bán đăng sản phẩm mới
 -- Validate dữ liệu → pending (có từ khóa rủi ro) hoặc approved (hiển thị ngay)
 -- -----------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION func_seller_list_product(
@@ -100,7 +68,6 @@ CREATE OR REPLACE FUNCTION func_seller_list_product(
 RETURNS TABLE (
     out_product_id INT,
     out_approval_status VARCHAR(20),
-    out_visible BOOLEAN,
     out_notification_message TEXT
 )
 LANGUAGE plpgsql
@@ -185,7 +152,6 @@ BEGIN
     SELECT
         v_product_id,
         v_status,
-        (v_status = 'approved'),
         v_msg;
 
 EXCEPTION
@@ -195,7 +161,7 @@ END;
 $$;
 
 -- -----------------------------------------------------------------------------
--- 4. Admin xem danh sách sản phẩm chờ duyệt
+-- 3. Admin xem danh sách sản phẩm chờ duyệt
 -- -----------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION func_admin_list_pending_products(
     p_admin_user_id INT
@@ -245,7 +211,7 @@ END;
 $$;
 
 -- -----------------------------------------------------------------------------
--- 5. Admin quyết định duyệt / ẩn sản phẩm
+-- 4. Admin quyết định duyệt / ẩn sản phẩm
 -- p_decision: approve | reject
 -- -----------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION func_admin_moderate_product(
@@ -258,7 +224,6 @@ CREATE OR REPLACE FUNCTION func_admin_moderate_product(
 RETURNS TABLE (
     out_product_id INT,
     out_approval_status VARCHAR(20),
-    out_visible BOOLEAN,
     out_notification_message TEXT
 )
 LANGUAGE plpgsql
@@ -300,7 +265,7 @@ BEGIN
 
     IF p_decision = 'approve' THEN
         IF v_current_status = 'approved' THEN
-            RAISE EXCEPTION 'Sản phẩm đã ở trạng thái Hiển thị!';
+            RAISE EXCEPTION 'Sản phẩm đã được phê duyệt (approved)!';
         END IF;
 
         v_new_status := 'approved';
@@ -346,7 +311,6 @@ BEGIN
     SELECT
         p_product_id,
         v_new_status,
-        (v_new_status = 'approved'),
         v_msg;
 
 EXCEPTION
@@ -356,9 +320,9 @@ END;
 $$;
 
 -- -----------------------------------------------------------------------------
--- 6. Trang Khách hàng — chỉ SP đã phê duyệt và đang hiển thị
+-- 5. Trang Khách hàng — chỉ SP đã phê duyệt (approval_status = 'approved')
 -- -----------------------------------------------------------------------------
-CREATE OR REPLACE FUNCTION func_get_customer_visible_products()
+CREATE OR REPLACE FUNCTION func_get_customer_approved_products()
 RETURNS TABLE (
     out_product_id INT,
     out_name VARCHAR(255),
@@ -381,13 +345,12 @@ BEGIN
     FROM Products p
     JOIN Sellers s ON s.seller_id = p.seller_id
     WHERE p.approval_status = 'approved'
-      AND p.visible = TRUE
     ORDER BY p.product_id ASC;
 END;
 $$;
 
 -- -----------------------------------------------------------------------------
--- 7. Tra cứu hồ sơ kiểm duyệt một sản phẩm
+-- 6. Tra cứu hồ sơ kiểm duyệt một sản phẩm
 -- -----------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION func_get_product_moderation_case(
     p_product_id INT
@@ -396,7 +359,6 @@ RETURNS TABLE (
     out_product_id INT,
     out_name VARCHAR(255),
     out_approval_status VARCHAR(20),
-    out_visible BOOLEAN,
     out_moderation_reason VARCHAR(50),
     out_moderation_note TEXT,
     out_moderated_at TIMESTAMP,
@@ -410,7 +372,6 @@ BEGIN
         p.product_id,
         p.name,
         p.approval_status,
-        p.visible,
         p.moderation_reason,
         p.moderation_note,
         p.moderated_at,

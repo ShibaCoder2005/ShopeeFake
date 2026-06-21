@@ -59,8 +59,6 @@ EXECUTE FUNCTION func_sellers_sync_user_role();
 --           trigger trg_sellers_sync_user_role = đồng bộ role sau INSERT
 -- DROP trước khi CREATE khi đổi tên cột RETURNS TABLE (PostgreSQL không REPLACE được)
 -- -----------------------------------------------------------------------------
-DROP FUNCTION IF EXISTS func_admin_create_seller(INT, INT, VARCHAR, TEXT, VARCHAR);
-
 CREATE OR REPLACE FUNCTION func_admin_create_seller(
     p_user_id INT,
     p_admin_user_id INT,
@@ -140,8 +138,6 @@ $$;
 -- -----------------------------------------------------------------------------
 -- 4. Tra cứu thông tin cửa hàng theo user
 -- -----------------------------------------------------------------------------
-DROP FUNCTION IF EXISTS func_get_seller_by_user(INT);
-
 CREATE OR REPLACE FUNCTION func_get_seller_by_user(
     p_user_id INT
 )
